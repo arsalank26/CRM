@@ -156,12 +156,12 @@ export function SecureVaultLock({
       }
 
       const sampleBurstCards = [
-        { label: '👤 AYASHA MAZHAR', sub: 'PAN CARD 400', amount: '₹400', tag: 'PAID', tagColor: '#10b981' },
-        { label: '👤 NASIR RASHID', sub: 'DRIVING LICENSE', amount: '₹5,500', tag: 'PARTIAL', tagColor: '#f59e0b' },
-        { label: '📊 MONTHLY REVENUE', sub: 'Gross Profit', amount: '₹28,450', tag: '+24%', tagColor: '#10b981' },
-        { label: '🧾 THERMAL BILL', sub: 'Al Uzer Receipt', amount: '₹1,200', tag: 'DELIVERED', tagColor: '#10b981' },
-        { label: '👤 SAHAIL HAKIM', sub: 'PAN CARD 500', amount: '₹450', tag: 'PAID', tagColor: '#10b981' },
-        { label: '📈 PROFIT MARGIN', sub: 'Total Income', amount: '₹18,900', tag: 'HEALTHY', tagColor: '#00ff88' },
+        { label: 'NEW CUSTOMER', sub: 'Service', amount: 'INR 0', tag: 'NEW', tagColor: '#10b981' },
+        { label: 'PAYMENT RECEIVED', sub: 'Recent payment', amount: 'INR 0', tag: 'PAID', tagColor: '#10b981' },
+        { label: 'MONTHLY REVENUE', sub: 'Gross income', amount: 'INR 0', tag: 'CURRENT', tagColor: '#10b981' },
+        { label: 'NEW INVOICE', sub: 'Service receipt', amount: 'INR 0', tag: 'READY', tagColor: '#10b981' },
+        { label: 'CUSTOMER BALANCE', sub: 'Pending amount', amount: 'INR 0', tag: 'OPEN', tagColor: '#f59e0b' },
+        { label: 'PROFIT MARGIN', sub: 'Total income', amount: 'INR 0', tag: 'CURRENT', tagColor: '#00ff88' },
       ];
 
       const newBurstCards: EruptingDataCard[] = sampleBurstCards.map((card, idx) => {

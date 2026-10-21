@@ -31,73 +31,12 @@ import { SendSMSModal } from './sms/SendSMSModal';
 import { SecureVaultLock, SecureReportGateModal } from './SecureVaultLock';
 import { getStoredAppRole, setStoredAppRole, AppRole, fetchOwnerPinFromDb } from './securityService';
 import { ChangePinModal } from './ChangePinModal';
+import { aiContextManager } from './ai/aiContext';
 
-const seedWorkTypes: WorkType[] = [
-  { id: 'wt-1', name: 'PAN CARD 500', expense: 320, is_active: true },
-  { id: 'wt-2', name: 'ELECTION', expense: 20, is_active: true },
-  { id: 'wt-3', name: 'PAN CARD 400', expense: 220, is_active: true },
-  { id: 'wt-4', name: 'DRIVING LICENSE (2W+4W TRANSPO', expense: 3500, is_active: true },
-  { id: 'wt-5', name: 'AADHAR PAN LINK', expense: 1000, is_active: true },
-  { id: 'wt-6', name: 'PASSPORT', expense: 2500, is_active: true },
-  { id: 'wt-7', name: 'INCOME', expense: 170, is_active: true },
-  { id: 'wt-8', name: 'PAN CARD 250', expense: 120, is_active: true },
-  { id: 'wt-9', name: 'PAN CARD', expense: 100, is_active: true },
-  { id: 'wt-10', name: 'DOMICILE', expense: 150, is_active: true },
-  { id: 'wt-11', name: 'GAZETTE', expense: 300, is_active: true },
-  { id: 'wt-12', name: 'AADHAR CARD', expense: 50, is_active: true },
-  { id: 'wt-13', name: 'VOTER ID', expense: 30, is_active: true },
-];
+const seedWorkTypes: WorkType[] = [];
 
 const defaultCategories: Category[] = ['Business', 'Utilities', 'Office supplies', 'Personal'].map((name, i) => ({ id: `cat-${i}`, name }));
 const defaultStatuses: WorkStatus[] = ['Pending', 'In Progress', 'Payment Pending', 'Document Required', 'Completed', 'Delivered', 'Rejected', 'Cancelled'].map((name, i) => ({ id: `ws-${i}`, name }));
-
-const fallbackCustomers: CustomerRecord[] = [
-  { id: 'cust-1', customer_name: 'SAHAIL HAKIM SHAIKH TAKARE', mobile: '8177808656', work_type: 'PAN CARD 500', total_amount: 450, charges: 0, paid: 450, expense: 320, income: 130, payment_status: 'PAID', work_status: 'Pending', created_at: '2026-09-03T10:00:00Z' },
-  { id: 'cust-2', customer_name: 'ILMODDIN LUKMAN SHAIKH', mobile: '9637609072', work_type: 'ELECTION', total_amount: 300, charges: 0, paid: 300, expense: 20, income: 280, payment_status: 'PAID', work_status: 'In Progress', created_at: '2026-09-03T10:30:00Z' },
-  { id: 'cust-3', customer_name: 'SHAHADAT LUKMAN SHAIKH', mobile: '9637609072', work_type: 'ELECTION', total_amount: 300, charges: 0, paid: 300, expense: 20, income: 280, payment_status: 'PAID', work_status: 'Payment Pending', created_at: '2026-09-03T11:00:00Z' },
-  { id: 'cust-4', customer_name: 'AYASHA MAZHAR HUSSAIN ANSARI', mobile: '7020936678', work_type: 'PAN CARD 400', total_amount: 400, charges: 0, paid: 400, expense: 220, income: 180, payment_status: 'PAID', work_status: 'Pending', created_at: '2026-09-03T11:30:00Z' },
-  { id: 'cust-5', customer_name: 'NASIR RASHID KHAN', mobile: '9284217176', work_type: 'DRIVING LICENSE (2W+4W TRANSPO', total_amount: 5500, charges: 0, paid: 3500, expense: 3500, income: 2000, payment_status: 'PARTIAL', work_status: 'Pending', created_at: '2026-09-03T12:00:00Z' },
-  { id: 'cust-6', customer_name: 'YASMEEN ILIYAS SHAIKH', mobile: '8888428035', work_type: 'AADHAR PAN LINK', total_amount: 1200, charges: 0, paid: 1200, expense: 1000, income: 200, payment_status: 'PAID', work_status: 'In Progress', created_at: '2026-09-02T10:00:00Z' },
-  { id: 'cust-7', customer_name: 'GULBANO KUTUBODDIN NAGINEWALE', mobile: '', work_type: 'PASSPORT', total_amount: 3000, charges: 0, paid: 2500, expense: 2500, income: 500, payment_status: 'PARTIAL', work_status: 'Pending', created_at: '2026-09-02T11:00:00Z' },
-  { id: 'cust-8', customer_name: 'KISHOR RAJARAM TAKARE', mobile: '', work_type: 'INCOME', total_amount: 250, charges: 0, paid: 250, expense: 170, income: 80, payment_status: 'PAID', work_status: 'In Progress', created_at: '2026-09-01T10:00:00Z' },
-  { id: 'cust-9', customer_name: 'MADEEHA ASAD SAYYED', mobile: '9850578671', work_type: 'ELECTION', total_amount: 300, charges: 0, paid: 300, expense: 20, income: 280, payment_status: 'PAID', work_status: 'In Progress', created_at: '2026-09-01T11:00:00Z' },
-  { id: 'cust-10', customer_name: 'ASAD SULTAN SAYYYED', mobile: '985078671', work_type: 'ELECTION', total_amount: 300, charges: 0, paid: 300, expense: 20, income: 280, payment_status: 'PAID', work_status: 'In Progress', created_at: '2026-09-01T11:30:00Z' },
-  { id: 'cust-11', customer_name: 'SABA USMAN KHAN', mobile: '9422999478', work_type: 'PAN CARD 250', total_amount: 250, charges: 0, paid: 250, expense: 120, income: 130, payment_status: 'PAID', work_status: 'Pending', created_at: '2026-09-01T12:00:00Z' },
-];
-
-const fallbackKirkol: Kirkol[] = [
-  { id: 'kir-1', work: '2000 MT T', price: 20, created_at: '2026-09-04T09:00:00Z' },
-  { id: 'kir-2', work: 'AADHAAR', price: 60, created_at: '2026-09-04T09:15:00Z' },
-  { id: 'kir-3', work: 'AADHAAR', price: 60, created_at: '2026-09-04T09:30:00Z' },
-  { id: 'kir-4', work: 'ADHAAR', price: 60, created_at: '2026-09-04T09:45:00Z' },
-  { id: 'kir-5', work: 'PVC CARD', price: 100, created_at: '2026-09-04T10:00:00Z' },
-  { id: 'kir-6', work: '8000 ONLNE YUKUB BHAI J', price: 80, created_at: '2026-09-04T10:15:00Z' },
-  { id: 'kir-7', work: 'PHOTO', price: 50, created_at: '2026-09-04T10:30:00Z' },
-  { id: 'kir-8', work: '5000 MT', price: 50, created_at: '2026-09-04T10:45:00Z' },
-  { id: 'kir-9', work: '2000 MT', price: 20, created_at: '2026-09-04T11:00:00Z' },
-  { id: 'kir-10', work: '1000 MJ', price: 10, created_at: '2026-09-04T11:15:00Z' },
-  { id: 'kir-11', work: 'AADHAAR', price: 60, created_at: '2026-09-04T11:30:00Z' },
-  { id: 'kir-12', work: '2000MT T', price: 20, created_at: '2026-09-03T09:00:00Z' },
-  { id: 'kir-13', work: 'COLOUR PRINT', price: 10, created_at: '2026-09-03T09:30:00Z' },
-  { id: 'kir-14', work: 'AADHAR', price: 60, created_at: '2026-09-03T10:00:00Z' },
-  { id: 'kir-15', work: '850 MT J', price: 10, created_at: '2026-09-03T10:30:00Z' },
-  { id: 'kir-16', work: 'MHA ID', price: 100, created_at: '2026-09-03T11:00:00Z' },
-  { id: 'kir-17', work: '500MT T', price: 10, created_at: '2026-09-03T11:30:00Z' },
-  { id: 'kir-18', work: 'AADHAR', price: 120, created_at: '2026-09-03T12:00:00Z' },
-  { id: 'kir-19', work: '500 MT J', price: 10, created_at: '2026-09-03T12:30:00Z' },
-  { id: 'kir-20', work: '12500 MT J', price: 130, created_at: '2026-09-03T13:00:00Z' },
-  { id: 'kir-21', work: '2000 MT T', price: 20, created_at: '2026-09-03T13:30:00Z' },
-  { id: 'kir-22', work: '500 LADKI BAHEN J', price: 10, created_at: '2026-09-03T14:00:00Z' },
-  { id: 'kir-23', work: '400 MT T', price: 10, created_at: '2026-09-03T14:30:00Z' },
-  { id: 'kir-24', work: 'PHOTO', price: 50, created_at: '2026-09-03T15:00:00Z' },
-  { id: 'kir-25', work: 'PHOTO', price: 50, created_at: '2026-09-03T15:30:00Z' },
-  { id: 'kir-26', work: 'MAHA ID', price: 200, created_at: '2026-09-03T16:00:00Z' },
-  { id: 'kir-27', work: 'LETTER HEAD', price: 80, created_at: '2026-09-03T16:30:00Z' },
-  { id: 'kir-28', work: '10000 mt j', price: 100, created_at: '2026-09-03T17:00:00Z' },
-  { id: 'kir-29', work: '2200 MT J', price: 30, created_at: '2026-09-03T17:30:00Z' },
-  { id: 'kir-30', work: 'AADHAR', price: 60, created_at: '2026-09-03T18:00:00Z' },
-  { id: 'kir-31', work: '2000 MONEY TRANSFER', price: 20, created_at: '2026-09-03T18:30:00Z' },
-];
 
 const LOCAL_STORAGE_KEYS = {
   CUSTOMERS: 'al_uzer_crm_customers',
@@ -108,14 +47,30 @@ const LOCAL_STORAGE_KEYS = {
   WORK_STATUSES: 'al_uzer_crm_work_statuses',
 };
 
+// Purge records stored by older builds before rendering anything from browser storage.
+const LEGACY_DATA_PURGE_KEY = 'al_uzer_crm_legacy_data_purged_v1';
+try {
+  if (!localStorage.getItem(LEGACY_DATA_PURGE_KEY)) {
+    [
+      ...Object.values(LOCAL_STORAGE_KEYS),
+      'al_uzer_crm_owner_pin',
+      'al_uzer_sms_settings',
+      'al_uzer_sms_queue',
+      'al_uzer_sms_logs',
+      'al_uzer_ai_chat_history',
+    ].forEach((key) => localStorage.removeItem(key));
+    localStorage.setItem(LEGACY_DATA_PURGE_KEY, 'true');
+    aiContextManager.clearHistory();
+  }
+} catch {
+  // Browser storage may be unavailable; database data remains the source of truth.
+}
+
 function loadFromLocalStorage<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length === 0 && Array.isArray(fallback) && fallback.length > 0) {
-      return fallback;
-    }
     return parsed;
   } catch {
     return fallback;
@@ -144,7 +99,7 @@ function App() {
     loadFromLocalStorage(LOCAL_STORAGE_KEYS.WORK_TYPES, seedWorkTypes)
   );
   const [customers, setCustomers] = useState<CustomerRecord[]>(() =>
-    loadFromLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, fallbackCustomers)
+    loadFromLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, [])
   );
   const [spendings, setSpendings] = useState<Spending[]>(() =>
     loadFromLocalStorage(LOCAL_STORAGE_KEYS.SPENDINGS, [])
@@ -156,7 +111,7 @@ function App() {
     loadFromLocalStorage(LOCAL_STORAGE_KEYS.WORK_STATUSES, defaultStatuses)
   );
   const [kirkol, setKirkol] = useState<Kirkol[]>(() =>
-    loadFromLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, fallbackKirkol)
+    loadFromLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, [])
   );
 
   const [appRole, setAppRole] = useState<AppRole>(() => getStoredAppRole());
@@ -224,127 +179,50 @@ function App() {
           supabase.from('kirkol').select('*').order('created_at', { ascending: false }),
         ]);
 
-        if (!types.error && types.data?.length) {
-          const remoteTypes = types.data as WorkType[];
-          const localTypes = loadFromLocalStorage<WorkType[]>(LOCAL_STORAGE_KEYS.WORK_TYPES, []);
-          const mergedMap = new Map<string, WorkType>();
-          remoteTypes.forEach((t) => mergedMap.set(t.name.toUpperCase(), t));
-          localTypes.forEach((t) => {
-            if (!mergedMap.has(t.name.toUpperCase())) {
-              mergedMap.set(t.name.toUpperCase(), t);
-              if (supabase) {
-                void supabase.from('work_types').upsert(t);
-              }
-            }
-          });
-          const mergedList = Array.from(mergedMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-          setWorkTypes(mergedList);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_TYPES, mergedList);
+        if (!types.error && types.data) {
+          const rows = types.data as WorkType[];
+          setWorkTypes(rows);
+          saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_TYPES, rows);
         }
 
         if (!cust.error && cust.data) {
           const remoteCust = cust.data as CustomerRecord[];
-          const localCust = loadFromLocalStorage<CustomerRecord[]>(LOCAL_STORAGE_KEYS.CUSTOMERS, fallbackCustomers);
-          const mergedMap = new Map<string, CustomerRecord>();
-
-          remoteCust.forEach((r) => {
-            mergedMap.set(r.id, { ...r, payment_mode: r.payment_mode || 'Cash' });
-          });
-
-          localCust.forEach((l) => {
-            if (mergedMap.has(l.id)) {
-              const existing = mergedMap.get(l.id)!;
-              mergedMap.set(l.id, {
-                ...existing,
-                items: l.items || existing.items,
-                payment_mode: l.payment_mode || existing.payment_mode || 'Cash',
-              });
-            } else {
-              mergedMap.set(l.id, l);
-              if (supabase) {
-                const { items: _, ...supabaseRecord } = l;
-                void supabase.from('customer_records').upsert(supabaseRecord);
-              }
-            }
-          });
-
-          const mergedList = Array.from(mergedMap.values()).sort(
+          const rows = remoteCust.map((r) => ({ ...r, payment_mode: r.payment_mode || 'Cash' }));
+          const sortedRows = rows.sort(
             (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
           );
-          setCustomers(mergedList);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, mergedList);
+          setCustomers(sortedRows);
+          saveToLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, sortedRows);
         }
 
         if (!spend.error && spend.data) {
           const remoteSpend = spend.data as Spending[];
-          const localSpend = loadFromLocalStorage<Spending[]>(LOCAL_STORAGE_KEYS.SPENDINGS, []);
-          const mergedMap = new Map<string, Spending>();
-          remoteSpend.forEach((s) => mergedMap.set(s.id, s));
-          localSpend.forEach((s) => {
-            if (!mergedMap.has(s.id)) {
-              mergedMap.set(s.id, s);
-              if (supabase) {
-                void supabase.from('spendings').upsert(s);
-              }
-            }
-          });
-          const mergedList = Array.from(mergedMap.values()).sort(
+          const sortedRows = remoteSpend.sort(
             (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
           );
-          setSpendings(mergedList);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.SPENDINGS, mergedList);
+          setSpendings(sortedRows);
+          saveToLocalStorage(LOCAL_STORAGE_KEYS.SPENDINGS, sortedRows);
         }
 
-        if (!cats.error && cats.data?.length) {
-          const remoteCats = cats.data as Category[];
-          const localCats = loadFromLocalStorage<Category[]>(LOCAL_STORAGE_KEYS.CATEGORIES, defaultCategories);
-          const mergedMap = new Map<string, Category>();
-          remoteCats.forEach((c) => mergedMap.set(c.name.toLowerCase(), c));
-          localCats.forEach((c) => {
-            if (!mergedMap.has(c.name.toLowerCase())) {
-              mergedMap.set(c.name.toLowerCase(), c);
-              if (supabase) void supabase.from('spending_categories').upsert(c);
-            }
-          });
-          const mergedList = Array.from(mergedMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-          setCategories(mergedList);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.CATEGORIES, mergedList);
+        if (!cats.error && cats.data) {
+          const rows = cats.data as Category[];
+          setCategories(rows);
+          saveToLocalStorage(LOCAL_STORAGE_KEYS.CATEGORIES, rows);
         }
 
-        if (!wst.error && wst.data?.length) {
-          const remoteStatuses = wst.data as WorkStatus[];
-          const localStatuses = loadFromLocalStorage<WorkStatus[]>(LOCAL_STORAGE_KEYS.WORK_STATUSES, defaultStatuses);
-          const mergedMap = new Map<string, WorkStatus>();
-          remoteStatuses.forEach((s) => mergedMap.set(s.name.toLowerCase(), s));
-          localStatuses.forEach((s) => {
-            if (!mergedMap.has(s.name.toLowerCase())) {
-              mergedMap.set(s.name.toLowerCase(), s);
-              if (supabase) void supabase.from('work_statuses').upsert(s);
-            }
-          });
-          const mergedList = Array.from(mergedMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-          setWorkStatuses(mergedList);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_STATUSES, mergedList);
+        if (!wst.error && wst.data) {
+          const rows = wst.data as WorkStatus[];
+          setWorkStatuses(rows);
+          saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_STATUSES, rows);
         }
 
         if (!kir.error && kir.data) {
-          const remoteKir = kir.data as Kirkol[];
-          const localKir = loadFromLocalStorage<Kirkol[]>(LOCAL_STORAGE_KEYS.KIRKOL, fallbackKirkol);
-          const mergedMap = new Map<string, Kirkol>();
-          remoteKir.forEach((k) => mergedMap.set(k.id, k));
-          localKir.forEach((k) => {
-            if (!mergedMap.has(k.id)) {
-              mergedMap.set(k.id, k);
-              if (supabase) {
-                void supabase.from('kirkol').upsert(k);
-              }
-            }
-          });
-          const mergedList = Array.from(mergedMap.values()).sort(
+          const rows = kir.data as Kirkol[];
+          const sortedRows = rows.sort(
             (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
           );
-          setKirkol(mergedList);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, mergedList);
+          setKirkol(sortedRows);
+          saveToLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, sortedRows);
         }
 
         if (!cust.error && !types.error) {

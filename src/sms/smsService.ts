@@ -15,11 +15,11 @@ export const DEFAULT_SMS_SETTINGS: SMSSettings = {
   reminderFrequencyDays: 5,
   reminderTime: '10:00 AM',
   maxReminders: 3,
-  businessName: 'Al Uzer Common Services',
+  businessName: 'Your Business',
   messageTemplate:
     'Dear {customer_name}, your outstanding balance of ₹{balance} for {work_type} has been pending for {days_pending} days. Please clear your pending amount at your earliest convenience. Thank you, {business_name}.',
-  gatewayApiKey: 'alz-gateway-sim-sec-key-889',
-  gatewayDeviceName: 'Owner SIM Gateway (Android)',
+  gatewayApiKey: '',
+  gatewayDeviceName: '',
 };
 
 class SMSService {
@@ -97,7 +97,7 @@ class SMSService {
       .replace(/{balance}/g, balance.toLocaleString('en-IN'))
       .replace(/{work_type}/g, customer.work_type || 'Service')
       .replace(/{days_pending}/g, String(Math.max(daysPending, 1)))
-      .replace(/{business_name}/g, businessName || 'Al Uzer Common Services');
+      .replace(/{business_name}/g, businessName || 'Your Business');
   }
 
   /**

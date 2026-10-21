@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS public.sms_settings (
   reminder_time text DEFAULT '10:00 AM',
   max_reminders integer DEFAULT 3,
   message_template text NOT NULL,
-  business_name text DEFAULT 'Al Uzer Common Services',
+  business_name text DEFAULT 'Your Business',
   gateway_api_key text,
   gateway_device_name text,
   gateway_last_seen timestamptz,
@@ -208,25 +208,6 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- MASTER WORK TYPES & EXPENSES (FROM YOUR SERVICES)
--- ============================================================================
-INSERT INTO public.work_types (name, expense, is_active) VALUES
-  ('PAN CARD 500', 320.00, true),
-  ('ELECTION', 20.00, true),
-  ('PAN CARD 400', 220.00, true),
-  ('DRIVING LICENSE (2W+4W TRANSPO', 3500.00, true),
-  ('AADHAR PAN LINK', 1000.00, true),
-  ('PASSPORT', 2500.00, true),
-  ('INCOME', 170.00, true),
-  ('PAN CARD 250', 120.00, true),
-  ('PAN CARD', 100.00, true),
-  ('DOMICILE', 150.00, true),
-  ('GAZETTE', 300.00, true),
-  ('AADHAR CARD', 50.00, true),
-  ('VOTER ID', 30.00, true)
-ON CONFLICT (name) DO UPDATE SET expense = EXCLUDED.expense;
-
--- ============================================================================
 -- SPENDING CATEGORIES & WORK STATUSES
 -- ============================================================================
 INSERT INTO public.spending_categories (name) VALUES 
@@ -236,73 +217,3 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO public.work_statuses (name) VALUES 
   ('Pending'), ('In Progress'), ('Payment Pending'), ('Document Required'), ('Completed'), ('Delivered'), ('Rejected'), ('Cancelled') 
 ON CONFLICT (name) DO NOTHING;
-
--- ============================================================================
--- SMS REMINDER DEFAULT SETTINGS & APP SECURITY
--- ============================================================================
-INSERT INTO public.sms_settings (
-  id, enabled, min_days_overdue, reminder_frequency_days, reminder_time, max_reminders, 
-  message_template, business_name, gateway_api_key, gateway_device_name
-) VALUES (
-  'sms-default-config', true, 5, 5, '10:00 AM', 3,
-  'Dear {customer_name}, your outstanding balance of ₹{balance} for {work_type} has been pending for {days_pending} days. Please clear your pending amount at your earliest convenience. Thank you, {business_name}.',
-  'Al Uzer Common Services', 'alz-gateway-sim-sec-key-889', 'Owner SIM Gateway (Android)'
-) ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO public.app_security (id, owner_pin) VALUES 
-  ('owner_pin_config', '163692') 
-ON CONFLICT (id) DO NOTHING;
-
--- ============================================================================
--- IMPORT YOUR LIVE CUSTOMER WORK & TRANSACTIONS (11 RECORDS)
--- ============================================================================
-INSERT INTO public.customer_records (
-  customer_name, mobile, work_type, total_amount, charges, paid, expense, income, payment_status, work_status, created_at
-) VALUES
-  ('SAHAIL HAKIM SHAIKH TAKARE', '8177808656', 'PAN CARD 500', 450.00, 0.00, 450.00, 320.00, 130.00, 'PAID', 'Pending', '2026-09-03T10:00:00Z'),
-  ('ILMODDIN LUKMAN SHAIKH', '9637609072', 'ELECTION', 300.00, 0.00, 300.00, 20.00, 280.00, 'PAID', 'In Progress', '2026-09-03T10:30:00Z'),
-  ('SHAHADAT LUKMAN SHAIKH', '9637609072', 'ELECTION', 300.00, 0.00, 300.00, 20.00, 280.00, 'PAID', 'Payment Pending', '2026-09-03T11:00:00Z'),
-  ('AYASHA MAZHAR HUSSAIN ANSARI', '7020936678', 'PAN CARD 400', 400.00, 0.00, 400.00, 220.00, 180.00, 'PAID', 'Pending', '2026-09-03T11:30:00Z'),
-  ('NASIR RASHID KHAN', '9284217176', 'DRIVING LICENSE (2W+4W TRANSPO', 5500.00, 0.00, 3500.00, 3500.00, 2000.00, 'PARTIAL', 'Pending', '2026-09-03T12:00:00Z'),
-  ('YASMEEN ILIYAS SHAIKH', '8888428035', 'AADHAR PAN LINK', 1200.00, 0.00, 1200.00, 1000.00, 200.00, 'PAID', 'In Progress', '2026-09-02T10:00:00Z'),
-  ('GULBANO KUTUBODDIN NAGINEWALE', '', 'PASSPORT', 3000.00, 0.00, 2500.00, 2500.00, 500.00, 'PARTIAL', 'Pending', '2026-09-02T11:00:00Z'),
-  ('KISHOR RAJARAM TAKARE', '', 'INCOME', 250.00, 0.00, 250.00, 170.00, 80.00, 'PAID', 'In Progress', '2026-09-01T10:00:00Z'),
-  ('MADEEHA ASAD SAYYED', '9850578671', 'ELECTION', 300.00, 0.00, 300.00, 20.00, 280.00, 'PAID', 'In Progress', '2026-09-01T11:00:00Z'),
-  ('ASAD SULTAN SAYYYED', '985078671', 'ELECTION', 300.00, 0.00, 300.00, 20.00, 280.00, 'PAID', 'In Progress', '2026-09-01T11:30:00Z'),
-  ('SABA USMAN KHAN', '9422999478', 'PAN CARD 250', 250.00, 0.00, 250.00, 120.00, 130.00, 'PAID', 'Pending', '2026-09-01T12:00:00Z');
-
--- ============================================================================
--- IMPORT YOUR LIVE KIRKOL (COUNTER REVENUE) (31 RECORDS)
--- ============================================================================
-INSERT INTO public.kirkol (work, price, created_at) VALUES
-  ('2000 MT T', 20.00, '2026-09-04T09:00:00Z'),
-  ('AADHAAR', 60.00, '2026-09-04T09:15:00Z'),
-  ('AADHAAR', 60.00, '2026-09-04T09:30:00Z'),
-  ('ADHAAR', 60.00, '2026-09-04T09:45:00Z'),
-  ('PVC CARD', 100.00, '2026-09-04T10:00:00Z'),
-  ('8000 ONLNE YUKUB BHAI J', 80.00, '2026-09-04T10:15:00Z'),
-  ('PHOTO', 50.00, '2026-09-04T10:30:00Z'),
-  ('5000 MT', 50.00, '2026-09-04T10:45:00Z'),
-  ('2000 MT', 20.00, '2026-09-04T11:00:00Z'),
-  ('1000 MJ', 10.00, '2026-09-04T11:15:00Z'),
-  ('AADHAAR', 60.00, '2026-09-04T11:30:00Z'),
-  ('2000MT T', 20.00, '2026-09-03T09:00:00Z'),
-  ('COLOUR PRINT', 10.00, '2026-09-03T09:30:00Z'),
-  ('AADHAR', 60.00, '2026-09-03T10:00:00Z'),
-  ('850 MT J', 10.00, '2026-09-03T10:30:00Z'),
-  ('MHA ID', 100.00, '2026-09-03T11:00:00Z'),
-  ('500MT T', 10.00, '2026-09-03T11:30:00Z'),
-  ('AADHAR', 120.00, '2026-09-03T12:00:00Z'),
-  ('500 MT J', 10.00, '2026-09-03T12:30:00Z'),
-  ('12500 MT J', 130.00, '2026-09-03T13:00:00Z'),
-  ('2000 MT T', 20.00, '2026-09-03T13:30:00Z'),
-  ('500 LADKI BAHEN J', 10.00, '2026-09-03T14:00:00Z'),
-  ('400 MT T', 10.00, '2026-09-03T14:30:00Z'),
-  ('PHOTO', 50.00, '2026-09-03T15:00:00Z'),
-  ('PHOTO', 50.00, '2026-09-03T15:30:00Z'),
-  ('MAHA ID', 200.00, '2026-09-03T16:00:00Z'),
-  ('LETTER HEAD', 80.00, '2026-09-03T16:30:00Z'),
-  ('10000 mt j', 100.00, '2026-09-03T17:00:00Z'),
-  ('2200 MT J', 30.00, '2026-09-03T17:30:00Z'),
-  ('AADHAR', 60.00, '2026-09-03T18:00:00Z'),
-  ('2000 MONEY TRANSFER', 20.00, '2026-09-03T18:30:00Z');
