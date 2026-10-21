@@ -33,11 +33,6 @@ import { getStoredAppRole, setStoredAppRole, AppRole, fetchOwnerPinFromDb } from
 import { ChangePinModal } from './ChangePinModal';
 import { aiContextManager } from './ai/aiContext';
 
-const seedWorkTypes: WorkType[] = [];
-
-const defaultCategories: Category[] = ['Business', 'Utilities', 'Office supplies', 'Personal'].map((name, i) => ({ id: `cat-${i}`, name }));
-const defaultStatuses: WorkStatus[] = ['Pending', 'In Progress', 'Payment Pending', 'Document Required', 'Completed', 'Delivered', 'Rejected', 'Cancelled'].map((name, i) => ({ id: `ws-${i}`, name }));
-
 const LOCAL_STORAGE_KEYS = {
   CUSTOMERS: 'al_uzer_crm_customers',
   SPENDINGS: 'al_uzer_crm_spendings',
@@ -66,25 +61,6 @@ try {
   // Browser storage may be unavailable; database data remains the source of truth.
 }
 
-function loadFromLocalStorage<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw);
-    return parsed;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveToLocalStorage<T>(key: string, value: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.warn('Failed to save to localStorage:', e);
-  }
-}
-
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || (import.meta.env.NEXT_PUBLIC_SUPABASE_URL as string | undefined);
 const supabaseKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || (import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY as string | undefined);
 const supabase: SupabaseClient | null = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
@@ -95,24 +71,12 @@ import { LogOut } from 'lucide-react';
 function App() {
   const [showRolePortal, setShowRolePortal] = useState(false);
   const [page, setPage] = useState<Page>('dashboard');
-  const [workTypes, setWorkTypes] = useState<WorkType[]>(() =>
-    loadFromLocalStorage(LOCAL_STORAGE_KEYS.WORK_TYPES, seedWorkTypes)
-  );
-  const [customers, setCustomers] = useState<CustomerRecord[]>(() =>
-    loadFromLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, [])
-  );
-  const [spendings, setSpendings] = useState<Spending[]>(() =>
-    loadFromLocalStorage(LOCAL_STORAGE_KEYS.SPENDINGS, [])
-  );
-  const [categories, setCategories] = useState<Category[]>(() =>
-    loadFromLocalStorage(LOCAL_STORAGE_KEYS.CATEGORIES, defaultCategories)
-  );
-  const [workStatuses, setWorkStatuses] = useState<WorkStatus[]>(() =>
-    loadFromLocalStorage(LOCAL_STORAGE_KEYS.WORK_STATUSES, defaultStatuses)
-  );
-  const [kirkol, setKirkol] = useState<Kirkol[]>(() =>
-    loadFromLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, [])
-  );
+  const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [spendings, setSpendings] = useState<Spending[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [workStatuses, setWorkStatuses] = useState<WorkStatus[]>([]);
+  const [kirkol, setKirkol] = useState<Kirkol[]>([]);
 
   const [appRole, setAppRole] = useState<AppRole>(() => getStoredAppRole());
   const isOwnerMode = appRole === 'owner';
@@ -155,21 +119,19 @@ function App() {
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState('');
 
-  // Permanent browser storage sync
-  useEffect(() => { saveToLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, customers); }, [customers]);
-  useEffect(() => { saveToLocalStorage(LOCAL_STORAGE_KEYS.SPENDINGS, spendings); }, [spendings]);
-  useEffect(() => { saveToLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, kirkol); }, [kirkol]);
-  useEffect(() => { saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_TYPES, workTypes); }, [workTypes]);
-  useEffect(() => { saveToLocalStorage(LOCAL_STORAGE_KEYS.CATEGORIES, categories); }, [categories]);
-  useEffect(() => { saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_STATUSES, workStatuses); }, [workStatuses]);
-
   const [supabaseConnected, setSupabaseConnected] = useState(false);
+  const [databaseLoading, setDatabaseLoading] = useState(Boolean(supabase));
+  const [databaseError, setDatabaseError] = useState('');
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      setDatabaseLoading(false);
+      setDatabaseError('Supabase is not configured for this deployment.');
+      return;
+    }
+    void fetchOwnerPinFromDb(supabase);
     const load = async (): Promise<void> => {
       try {
-        void fetchOwnerPinFromDb(supabase);
         const [types, cust, spend, cats, wst, kir] = await Promise.all([
           supabase.from('work_types').select('*').order('name'),
           supabase.from('customer_records').select('*').order('created_at', { ascending: false }),
@@ -179,10 +141,16 @@ function App() {
           supabase.from('kirkol').select('*').order('created_at', { ascending: false }),
         ]);
 
+        const failedQuery = [types, cust, spend, cats, wst, kir].find((result) => result.error);
+        if (failedQuery?.error) {
+          setSupabaseConnected(false);
+          setDatabaseError(failedQuery.error.message);
+          return;
+        }
+
         if (!types.error && types.data) {
           const rows = types.data as WorkType[];
           setWorkTypes(rows);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_TYPES, rows);
         }
 
         if (!cust.error && cust.data) {
@@ -192,7 +160,6 @@ function App() {
             (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
           );
           setCustomers(sortedRows);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, sortedRows);
         }
 
         if (!spend.error && spend.data) {
@@ -201,19 +168,16 @@ function App() {
             (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
           );
           setSpendings(sortedRows);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.SPENDINGS, sortedRows);
         }
 
         if (!cats.error && cats.data) {
           const rows = cats.data as Category[];
           setCategories(rows);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.CATEGORIES, rows);
         }
 
         if (!wst.error && wst.data) {
           const rows = wst.data as WorkStatus[];
           setWorkStatuses(rows);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_STATUSES, rows);
         }
 
         if (!kir.error && kir.data) {
@@ -222,20 +186,30 @@ function App() {
             (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
           );
           setKirkol(sortedRows);
-          saveToLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, sortedRows);
         }
 
-        if (!cust.error && !types.error) {
-          setSupabaseConnected(true);
-        } else {
-          setSupabaseConnected(false);
-        }
+        setSupabaseConnected(true);
+        setDatabaseError('');
       } catch (err) {
         console.warn('Database fetch note:', err);
         setSupabaseConnected(false);
+        setDatabaseError(err instanceof Error ? err.message : 'Could not reach Supabase.');
+      } finally {
+        setDatabaseLoading(false);
       }
     };
     void load();
+    const realtimeChannel = supabase.channel('crm-database-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => { void load(); })
+      .subscribe();
+    const refreshTimer = window.setInterval(() => { void load(); }, 15000);
+    const refreshOnFocus = () => { void load(); };
+    window.addEventListener('focus', refreshOnFocus);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('focus', refreshOnFocus);
+      void supabase.removeChannel(realtimeChannel);
+    };
   }, []);
 
   // Verified single source of truth calculations
@@ -249,6 +223,21 @@ function App() {
   );
 
   const notify = (message: string): void => { setToast(message); window.setTimeout(() => setToast(''), 2800); };
+
+  const getConnectedSupabase = (action: string): SupabaseClient | null => {
+    if (!supabase || !supabaseConnected) {
+      notify(databaseLoading ? 'Connecting to Supabase. Please wait.' : `Cannot ${action}: ${databaseError || 'Supabase is not connected.'}`);
+      return null;
+    }
+    return supabase;
+  };
+
+  const reportDatabaseWriteError = (action: string, error: { message?: string } | Error): void => {
+    const message = error.message || 'Supabase rejected the request.';
+    console.error(`${action} failed:`, error);
+    setDatabaseError(message);
+    notify(`${action} failed: ${message}`);
+  };
 
   function cleanCustomerForSupabase(data: Partial<CustomerRecord>) {
     const payload: Record<string, any> = {};
@@ -269,94 +258,69 @@ function App() {
   }
 
   const saveCustomer = async (data: Partial<CustomerRecord>, editingId?: string): Promise<void> => {
-    let savedRecord: CustomerRecord;
-    let nextCustomers: CustomerRecord[] = [];
+    const db = getConnectedSupabase('save customer');
+    if (!db) return;
 
-    if (editingId) {
-      savedRecord = {
-        ...(customers.find((c) => c.id === editingId) || {}),
-        ...data,
-        id: editingId,
-      } as CustomerRecord;
+    const record: CustomerRecord = {
+      ...(editingId ? customers.find((c) => c.id === editingId) : {}),
+      ...data,
+      id: editingId || makeId(),
+      customer_name: data.customer_name || customers.find((c) => c.id === editingId)?.customer_name || '',
+      mobile: data.mobile ?? customers.find((c) => c.id === editingId)?.mobile ?? '',
+      work_type: data.work_type || customers.find((c) => c.id === editingId)?.work_type || '',
+      total_amount: Number(data.total_amount ?? customers.find((c) => c.id === editingId)?.total_amount) || 0,
+      charges: Number(data.charges ?? customers.find((c) => c.id === editingId)?.charges) || 0,
+      paid: Number(data.paid ?? customers.find((c) => c.id === editingId)?.paid) || 0,
+      expense: Number(data.expense ?? customers.find((c) => c.id === editingId)?.expense) || 0,
+      income: Number(data.income ?? customers.find((c) => c.id === editingId)?.income) || 0,
+      payment_status: data.payment_status || customers.find((c) => c.id === editingId)?.payment_status || 'PENDING',
+      work_status: data.work_status || customers.find((c) => c.id === editingId)?.work_status || 'Pending',
+      payment_mode: data.payment_mode || customers.find((c) => c.id === editingId)?.payment_mode || 'Cash',
+      created_at: data.created_at || customers.find((c) => c.id === editingId)?.created_at || new Date().toISOString(),
+    };
 
-      if (supabase) {
-        try {
-          const supabaseData = cleanCustomerForSupabase(data);
-          const response = await supabase.from('customer_records').update(supabaseData).eq('id', editingId).select().maybeSingle();
-          if (response.data) {
-            savedRecord = { ...savedRecord, ...(response.data as Partial<CustomerRecord>) };
-          }
-          if (response.error) {
-            console.error('Supabase customer update error:', response.error);
-          }
-        } catch (e) {
-          console.warn('Supabase customer update error:', e);
-        }
+    try {
+      const query = editingId
+        ? db.from('customer_records').update(cleanCustomerForSupabase(data)).eq('id', editingId)
+        : db.from('customer_records').insert(cleanCustomerForSupabase(record));
+      const { data: saved, error } = await query.select('*').single();
+      if (error) {
+        reportDatabaseWriteError(editingId ? 'Customer update' : 'Customer save', error);
+        return;
       }
-
-      nextCustomers = customers.map((row) => (row.id === editingId ? savedRecord : row));
+      const savedRecord = { ...record, ...(saved as Partial<CustomerRecord>), payment_mode: (saved as CustomerRecord).payment_mode || record.payment_mode };
+      const nextCustomers = editingId
+        ? customers.map((row) => row.id === editingId ? savedRecord : row)
+        : [savedRecord, ...customers];
       setCustomers(nextCustomers);
-      saveToLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, nextCustomers);
-      notify('Customer record updated.');
-    } else {
-      const record: CustomerRecord = {
-        id: makeId(),
-        customer_name: data.customer_name!,
-        mobile: data.mobile || '',
-        work_type: data.work_type!,
-        total_amount: Number(data.total_amount) || 0,
-        charges: Number(data.charges) || 0,
-        paid: Number(data.paid) || 0,
-        expense: Number(data.expense) || 0,
-        income: Number(data.income) || 0,
-        payment_status: data.payment_status || 'PENDING',
-        work_status: data.work_status || 'Pending',
-        payment_mode: data.payment_mode || 'Cash',
-        items: data.items,
-        created_at: data.created_at || new Date().toISOString(),
-      };
-      savedRecord = record;
+      setSupabaseConnected(true);
+      setDatabaseError('');
+      notify(editingId ? 'Customer record updated in Supabase.' : 'Customer work saved to Supabase.');
 
-      if (supabase) {
-        try {
-          const supabaseRecord = cleanCustomerForSupabase(record);
-          const response = await supabase.from('customer_records').insert(supabaseRecord).select().maybeSingle();
-          if (response.data) {
-            savedRecord = { ...record, ...(response.data as Partial<CustomerRecord>) };
-          }
-          if (response.error) {
-            console.error('Supabase customer insert error:', response.error);
-          }
-        } catch (e) {
-          console.warn('Supabase customer insert error:', e);
-        }
-      }
-
-      nextCustomers = [savedRecord, ...customers];
-      setCustomers(nextCustomers);
-      saveToLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, nextCustomers);
-      notify('Customer work saved successfully.');
-    }
-
-    if (savedRecord) {
       const d = new Date(savedRecord.created_at);
       void fullSyncToGoogleSheets(nextCustomers, spendings, kirkol, totals, d.getFullYear(), d.getMonth(), true);
+    } catch (error) {
+      reportDatabaseWriteError('Customer save', error instanceof Error ? error : new Error(String(error)));
     }
   };
 
   const deleteCustomer = async (id: string): Promise<void> => {
+    const db = getConnectedSupabase('delete customer');
+    if (!db) return;
     const target = customers.find((c) => c.id === id);
-    if (supabase) {
-      try {
-        await supabase.from('customer_records').delete().eq('id', id);
-      } catch (e) {
-        console.warn('Supabase customer delete error:', e);
+    try {
+      const { data, error } = await db.from('customer_records').delete().eq('id', id).select('id').maybeSingle();
+      if (error || !data) {
+        reportDatabaseWriteError('Customer delete', error || new Error('Record was not found in Supabase.'));
+        return;
       }
+    } catch (error) {
+      reportDatabaseWriteError('Customer delete', error instanceof Error ? error : new Error(String(error)));
+      return;
     }
     const updated = customers.filter((row) => row.id !== id);
     setCustomers(updated);
-    saveToLocalStorage(LOCAL_STORAGE_KEYS.CUSTOMERS, updated);
-    notify('Customer record deleted.');
+    notify('Customer record deleted from Supabase.');
     if (target) {
       const d = new Date(target.created_at);
       void fullSyncToGoogleSheets(updated, spendings, kirkol, totals, d.getFullYear(), d.getMonth(), true);
@@ -364,75 +328,57 @@ function App() {
   };
 
   const saveSpending = async (data: Partial<Spending>, editingId?: string): Promise<void> => {
-    let savedSpending: Spending;
-    let nextSpendings: Spending[] = [];
-
-    if (editingId) {
-      savedSpending = {
-        ...(spendings.find((s) => s.id === editingId) || {}),
-        ...data,
-        id: editingId,
-      } as Spending;
-
-      if (supabase) {
-        try {
-          const response = await supabase.from('spendings').update(data).eq('id', editingId).select().maybeSingle();
-          if (response.data) savedSpending = response.data as Spending;
-          if (response.error) console.error('Supabase spending update error:', response.error);
-        } catch (e) {
-          console.warn('Supabase spending update error:', e);
-        }
+    const db = getConnectedSupabase('save spending');
+    if (!db) return;
+    const existing = editingId ? spendings.find((s) => s.id === editingId) : undefined;
+    const record: Spending = {
+      ...existing,
+      ...data,
+      id: editingId || makeId(),
+      expense_name: data.expense_name ?? existing?.expense_name ?? '',
+      amount: Number(data.amount ?? existing?.amount) || 0,
+      category: data.category ?? existing?.category ?? '',
+      created_at: data.created_at || existing?.created_at || new Date().toISOString(),
+    };
+    try {
+      const query = editingId
+        ? db.from('spendings').update(data).eq('id', editingId)
+        : db.from('spendings').insert(record);
+      const { data: saved, error } = await query.select('*').single();
+      if (error) {
+        reportDatabaseWriteError(editingId ? 'Spending update' : 'Spending save', error);
+        return;
       }
-
-      nextSpendings = spendings.map((row) => (row.id === editingId ? savedSpending : row));
+      const savedSpending = saved as Spending;
+      const nextSpendings = editingId
+        ? spendings.map((row) => row.id === editingId ? savedSpending : row)
+        : [savedSpending, ...spendings];
       setSpendings(nextSpendings);
-      saveToLocalStorage(LOCAL_STORAGE_KEYS.SPENDINGS, nextSpendings);
-      notify('Spending updated.');
-    } else {
-      const spending: Spending = {
-        id: makeId(),
-        expense_name: data.expense_name!,
-        amount: data.amount!,
-        category: data.category!,
-        created_at: data.created_at || new Date().toISOString(),
-      };
-      savedSpending = spending;
-
-      if (supabase) {
-        try {
-          const response = await supabase.from('spendings').insert(spending).select().maybeSingle();
-          if (response.data) savedSpending = response.data as Spending;
-          if (response.error) console.error('Supabase spending insert error:', response.error);
-        } catch (e) {
-          console.warn('Supabase spending insert error:', e);
-        }
-      }
-
-      nextSpendings = [savedSpending, ...spendings];
-      setSpendings(nextSpendings);
-      saveToLocalStorage(LOCAL_STORAGE_KEYS.SPENDINGS, nextSpendings);
-      notify('Spending added to your records.');
-    }
-
-    if (savedSpending) {
+      notify(editingId ? 'Spending updated in Supabase.' : 'Spending saved to Supabase.');
       const d = new Date(savedSpending.created_at);
       void fullSyncToGoogleSheets(customers, nextSpendings, kirkol, totals, d.getFullYear(), d.getMonth(), true);
+    } catch (error) {
+      reportDatabaseWriteError('Spending save', error instanceof Error ? error : new Error(String(error)));
     }
   };
 
   const deleteSpending = async (id: string): Promise<void> => {
+    const db = getConnectedSupabase('delete spending');
+    if (!db) return;
     const target = spendings.find((s) => s.id === id);
-    if (supabase) {
-      try {
-        await supabase.from('spendings').delete().eq('id', id);
-      } catch (e) {
-        console.warn('Supabase spending delete error:', e);
+    try {
+      const { data, error } = await db.from('spendings').delete().eq('id', id).select('id').maybeSingle();
+      if (error || !data) {
+        reportDatabaseWriteError('Spending delete', error || new Error('Record was not found in Supabase.'));
+        return;
       }
+    } catch (error) {
+      reportDatabaseWriteError('Spending delete', error instanceof Error ? error : new Error(String(error)));
+      return;
     }
     const updated = spendings.filter((row) => row.id !== id);
     setSpendings(updated);
-    saveToLocalStorage(LOCAL_STORAGE_KEYS.SPENDINGS, updated);
-    notify('Spending deleted.');
+    notify('Spending deleted from Supabase.');
     if (target) {
       const d = new Date(target.created_at);
       void fullSyncToGoogleSheets(customers, updated, kirkol, totals, d.getFullYear(), d.getMonth(), true);
@@ -440,74 +386,56 @@ function App() {
   };
 
   const saveKirkol = async (data: Partial<Kirkol>, editingId?: string): Promise<void> => {
-    let savedKirkol: Kirkol;
-    let nextKirkol: Kirkol[] = [];
-
-    if (editingId) {
-      savedKirkol = {
-        ...(kirkol.find((k) => k.id === editingId) || {}),
-        ...data,
-        id: editingId,
-      } as Kirkol;
-
-      if (supabase) {
-        try {
-          const response = await supabase.from('kirkol').update(data).eq('id', editingId).select().maybeSingle();
-          if (response.data) savedKirkol = response.data as Kirkol;
-          if (response.error) console.error('Supabase kirkol update error:', response.error);
-        } catch (e) {
-          console.warn('Supabase kirkol update error:', e);
-        }
+    const db = getConnectedSupabase('save Kirkol record');
+    if (!db) return;
+    const existing = editingId ? kirkol.find((k) => k.id === editingId) : undefined;
+    const record: Kirkol = {
+      ...existing,
+      ...data,
+      id: editingId || makeId(),
+      work: data.work ?? existing?.work ?? '',
+      price: Number(data.price ?? existing?.price) || 0,
+      created_at: data.created_at || existing?.created_at || new Date().toISOString(),
+    };
+    try {
+      const query = editingId
+        ? db.from('kirkol').update(data).eq('id', editingId)
+        : db.from('kirkol').insert(record);
+      const { data: saved, error } = await query.select('*').single();
+      if (error) {
+        reportDatabaseWriteError(editingId ? 'Kirkol update' : 'Kirkol save', error);
+        return;
       }
-
-      nextKirkol = kirkol.map((row) => (row.id === editingId ? savedKirkol : row));
+      const savedKirkol = saved as Kirkol;
+      const nextKirkol = editingId
+        ? kirkol.map((row) => row.id === editingId ? savedKirkol : row)
+        : [savedKirkol, ...kirkol];
       setKirkol(nextKirkol);
-      saveToLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, nextKirkol);
-      notify('Kirkol updated.');
-    } else {
-      const record: Kirkol = {
-        id: makeId(),
-        work: data.work!,
-        price: data.price!,
-        created_at: data.created_at || new Date().toISOString(),
-      };
-      savedKirkol = record;
-
-      if (supabase) {
-        try {
-          const response = await supabase.from('kirkol').insert(record).select().maybeSingle();
-          if (response.data) savedKirkol = response.data as Kirkol;
-          if (response.error) console.error('Supabase kirkol insert error:', response.error);
-        } catch (e) {
-          console.warn('Supabase kirkol insert error:', e);
-        }
-      }
-
-      nextKirkol = [savedKirkol, ...kirkol];
-      setKirkol(nextKirkol);
-      saveToLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, nextKirkol);
-      notify('Kirkol added successfully.');
-    }
-
-    if (savedKirkol) {
+      notify(editingId ? 'Kirkol updated in Supabase.' : 'Kirkol saved to Supabase.');
       const d = new Date(savedKirkol.created_at);
       void fullSyncToGoogleSheets(customers, spendings, nextKirkol, totals, d.getFullYear(), d.getMonth(), true);
+    } catch (error) {
+      reportDatabaseWriteError('Kirkol save', error instanceof Error ? error : new Error(String(error)));
     }
   };
 
   const deleteKirkol = async (id: string): Promise<void> => {
+    const db = getConnectedSupabase('delete Kirkol record');
+    if (!db) return;
     const target = kirkol.find((k) => k.id === id);
-    if (supabase) {
-      try {
-        await supabase.from('kirkol').delete().eq('id', id);
-      } catch (e) {
-        console.warn('Supabase kirkol delete error:', e);
+    try {
+      const { data, error } = await db.from('kirkol').delete().eq('id', id).select('id').maybeSingle();
+      if (error || !data) {
+        reportDatabaseWriteError('Kirkol delete', error || new Error('Record was not found in Supabase.'));
+        return;
       }
+    } catch (error) {
+      reportDatabaseWriteError('Kirkol delete', error instanceof Error ? error : new Error(String(error)));
+      return;
     }
     const updated = kirkol.filter((row) => row.id !== id);
     setKirkol(updated);
-    saveToLocalStorage(LOCAL_STORAGE_KEYS.KIRKOL, updated);
-    notify('Kirkol record deleted.');
+    notify('Kirkol record deleted from Supabase.');
     if (target) {
       const d = new Date(target.created_at);
       void fullSyncToGoogleSheets(customers, spendings, updated, totals, d.getFullYear(), d.getMonth(), true);
@@ -515,18 +443,15 @@ function App() {
   };
 
   const saveCategory = async (name: string, editingId?: string): Promise<void> => {
+    const db = getConnectedSupabase('save category');
+    if (!db) return;
     if (editingId) {
       if (categories.some((c) => c.name.toLowerCase() === name.toLowerCase() && c.id !== editingId)) {
         notify('That category name is already used.');
         return;
       }
-      if (supabase) {
-        try {
-          await supabase.from('spending_categories').update({ name }).eq('id', editingId);
-        } catch (e) {
-          console.warn('Supabase category update error:', e);
-        }
-      }
+      const { error } = await db.from('spending_categories').update({ name }).eq('id', editingId);
+      if (error) { reportDatabaseWriteError('Category update', error); return; }
       setCategories((current) => current.map((c) => (c.id === editingId ? { ...c, name } : c)));
       notify('Category updated.');
     } else {
@@ -535,13 +460,8 @@ function App() {
         return;
       }
       const cat: Category = { id: makeId(), name };
-      if (supabase) {
-        try {
-          await supabase.from('spending_categories').insert(cat);
-        } catch (e) {
-          console.warn('Supabase category insert error:', e);
-        }
-      }
+      const { error } = await db.from('spending_categories').insert(cat);
+      if (error) { reportDatabaseWriteError('Category save', error); return; }
       setCategories((current) => [...current, cat]);
       notify('Category added.');
     }
@@ -549,30 +469,24 @@ function App() {
   };
 
   const deleteCategory = async (id: string): Promise<void> => {
-    if (supabase) {
-      try {
-        await supabase.from('spending_categories').delete().eq('id', id);
-      } catch (e) {
-        console.warn('Supabase category delete error:', e);
-      }
-    }
+    const db = getConnectedSupabase('delete category');
+    if (!db) return;
+    const { error } = await db.from('spending_categories').delete().eq('id', id);
+    if (error) { reportDatabaseWriteError('Category delete', error); return; }
     setCategories((current) => current.filter((c) => c.id !== id));
     notify('Category deleted.');
   };
 
   const saveStatus = async (name: string, editingId?: string): Promise<void> => {
+    const db = getConnectedSupabase('save work status');
+    if (!db) return;
     if (editingId) {
       if (workStatuses.some((s) => s.name.toLowerCase() === name.toLowerCase() && s.id !== editingId)) {
         notify('That status name is already used.');
         return;
       }
-      if (supabase) {
-        try {
-          await supabase.from('work_statuses').update({ name }).eq('id', editingId);
-        } catch (e) {
-          console.warn('Supabase status update error:', e);
-        }
-      }
+      const { error } = await db.from('work_statuses').update({ name }).eq('id', editingId);
+      if (error) { reportDatabaseWriteError('Work status update', error); return; }
       setWorkStatuses((current) => current.map((s) => (s.id === editingId ? { ...s, name } : s)));
       notify('Work status updated.');
     } else {
@@ -581,13 +495,8 @@ function App() {
         return;
       }
       const ws: WorkStatus = { id: makeId(), name };
-      if (supabase) {
-        try {
-          await supabase.from('work_statuses').insert(ws);
-        } catch (e) {
-          console.warn('Supabase status insert error:', e);
-        }
-      }
+      const { error } = await db.from('work_statuses').insert(ws);
+      if (error) { reportDatabaseWriteError('Work status save', error); return; }
       setWorkStatuses((current) => [...current, ws]);
       notify('Work status added.');
     }
@@ -595,30 +504,22 @@ function App() {
   };
 
   const deleteStatus = async (id: string): Promise<void> => {
-    if (supabase) {
-      try {
-        await supabase.from('work_statuses').delete().eq('id', id);
-      } catch (e) {
-        console.warn('Supabase status delete error:', e);
-      }
-    }
+    const db = getConnectedSupabase('delete work status');
+    if (!db) return;
+    const { error } = await db.from('work_statuses').delete().eq('id', id);
+    if (error) { reportDatabaseWriteError('Work status delete', error); return; }
     setWorkStatuses((current) => current.filter((s) => s.id !== id));
     notify('Work status deleted.');
   };
 
   const saveWorkType = async (data: Partial<WorkType>, editingId?: string): Promise<void> => {
-    let nextList: WorkType[];
+    const db = getConnectedSupabase('save work type');
+    if (!db) return;
     if (editingId) {
-      nextList = workTypes.map((row) => (row.id === editingId ? { ...row, ...data } : row));
+      const { data: saved, error } = await db.from('work_types').update(data).eq('id', editingId).select('*').single();
+      if (error) { reportDatabaseWriteError('Work type update', error); return; }
+      const nextList = workTypes.map((row) => row.id === editingId ? saved as WorkType : row);
       setWorkTypes(nextList);
-      saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_TYPES, nextList);
-      if (supabase) {
-        try {
-          await supabase.from('work_types').update(data).eq('id', editingId);
-        } catch (e) {
-          console.warn('Supabase work type update error:', e);
-        }
-      }
       notify('Work type updated & synced.');
     } else {
       const record: WorkType = {
@@ -627,31 +528,19 @@ function App() {
         expense: data.expense ?? 0,
         is_active: data.is_active ?? true,
       };
-      nextList = [...workTypes, record];
-      setWorkTypes(nextList);
-      saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_TYPES, nextList);
-      if (supabase) {
-        try {
-          await supabase.from('work_types').upsert(record);
-        } catch (e) {
-          console.warn('Supabase work type insert error:', e);
-        }
-      }
+      const { data: saved, error } = await db.from('work_types').insert(record).select('*').single();
+      if (error) { reportDatabaseWriteError('Work type save', error); return; }
+      setWorkTypes((current) => [...current, saved as WorkType]);
       notify('Work type added & synced.');
     }
   };
 
   const deleteWorkType = async (id: string): Promise<void> => {
-    const nextList = workTypes.filter((row) => row.id !== id);
-    setWorkTypes(nextList);
-    saveToLocalStorage(LOCAL_STORAGE_KEYS.WORK_TYPES, nextList);
-    if (supabase) {
-      try {
-        await supabase.from('work_types').delete().eq('id', id);
-      } catch (e) {
-        console.warn('Supabase work type delete error:', e);
-      }
-    }
+    const db = getConnectedSupabase('delete work type');
+    if (!db) return;
+    const { error } = await db.from('work_types').delete().eq('id', id);
+    if (error) { reportDatabaseWriteError('Work type delete', error); return; }
+    setWorkTypes((current) => current.filter((row) => row.id !== id));
     notify('Work type deleted.');
   };
 
@@ -683,30 +572,23 @@ function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const parsed = JSON.parse(evt.target?.result as string);
-        if (parsed.customers && Array.isArray(parsed.customers)) {
-          setCustomers(parsed.customers);
-        }
-        if (parsed.spendings && Array.isArray(parsed.spendings)) {
-          setSpendings(parsed.spendings);
-        }
-        if (parsed.kirkol && Array.isArray(parsed.kirkol)) {
-          setKirkol(parsed.kirkol);
-        }
-        if (parsed.workTypes && Array.isArray(parsed.workTypes)) {
-          setWorkTypes(parsed.workTypes);
-        }
-        if (parsed.categories && Array.isArray(parsed.categories)) {
-          setCategories(parsed.categories);
-        }
-        if (parsed.workStatuses && Array.isArray(parsed.workStatuses)) {
-          setWorkStatuses(parsed.workStatuses);
-        }
-        notify('Backup restored successfully! All records loaded.');
+        const db = getConnectedSupabase('restore backup');
+        if (!db) return;
+        const tables = [
+          ['customer_records', parsed.customers], ['spendings', parsed.spendings], ['kirkol', parsed.kirkol],
+          ['work_types', parsed.workTypes], ['spending_categories', parsed.categories], ['work_statuses', parsed.workStatuses],
+        ] as const;
+        const operations = tables.filter(([, rows]) => Array.isArray(rows) && rows.length > 0)
+          .map(([table, rows]) => db.from(table).upsert(rows));
+        const results = await Promise.all(operations);
+        const failure = results.find((result) => result.error)?.error;
+        if (failure) { reportDatabaseWriteError('Backup restore', failure); return; }
+        window.location.reload();
       } catch (err) {
-        notify('Failed to restore: Invalid backup file format.');
+        notify(err instanceof Error ? `Failed to restore: ${err.message}` : 'Failed to restore: Invalid backup file format.');
       }
     };
     reader.readAsText(file);
@@ -887,6 +769,10 @@ function App() {
             )}
 
 
+            <span title={databaseError} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: supabaseConnected ? '#059669' : '#dc2626' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: supabaseConnected ? '#10b981' : '#ef4444' }} />
+              {databaseLoading ? 'Connecting to Supabase…' : supabaseConnected ? 'Supabase connected' : 'Supabase unavailable'}
+            </span>
             <button className="button secondary" style={{ padding: '7px 12px', fontSize: '11px' }} onClick={downloadBackup} title="Download instant offline backup">
               <Download size={14} /> <span>Backup</span>
             </button>
@@ -1069,7 +955,7 @@ function App() {
               categories={categories}
               workStatuses={workStatuses}
               totals={totals}
-              supabaseConnected={supabase !== null}
+              supabaseConnected={supabaseConnected}
               onNavigate={setPage}
               onFilterCustomers={(q) => setSearch(q)}
               onOpenMonthlyReport={handleOpenMonthlyReport}
