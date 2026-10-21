@@ -15,9 +15,9 @@ type Props = {
 
 const STORAGE_KEY = 'al_uzer_sheets_config';
 const DEFAULT_WEBHOOK_URL =
-  'https://script.google.com/macros/s/AKfycbzJrQPQQ6p4YsM4XqTSwKdbN1NcupzKLG-FBbzCRidqWKYUzkkhCZ6-cHWNqwHjta5d/exec';
+  'https://script.google.com/macros/s/AKfycbxNUI2eYoQdy5dHCilHkf1r7Gc5UxgzvkpcXi8PSQO4fzgZkivGhbHC5oEdTQDKi7DQ/exec';
 const DEFAULT_SPREADSHEET_URL =
-  'https://docs.google.com/spreadsheets/d/1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I/edit?gid=0#gid=0';
+  'https://docs.google.com/spreadsheets/d/1oklvgEStaUW1P73_qqyrbCXSCQ_iYj-d0K94bmraxb4/edit?pli=1&gid=0#gid=0';
 
 export function GoogleSheetsPage({ customers, spendings, kirkol, totals, notify }: Props) {
   const currentYear = new Date().getFullYear();
@@ -43,10 +43,10 @@ export function GoogleSheetsPage({ customers, spendings, kirkol, totals, notify 
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        const activeWebhook = (!parsed.webhookUrl || parsed.webhookUrl.includes('AKfycbwgOZYrRO8GYXw7lvDcau0JnlBlPlWgMEEw5AQ_LUsNgqZVtWY9y_SeIl4eSP181w'))
+        const activeWebhook = (!parsed.webhookUrl || parsed.webhookUrl.includes('AKfycbwgOZYrRO8GYXw7lvDcau0JnlBlPlWgMEEw5AQ_LUsNgqZVtWY9y_SeIl4eSP181w') || parsed.webhookUrl.includes('AKfycbzJrQPQQ6p4YsM4XqTSwKdbN1NcupzKLG-FBbzCRidqWKYUzkkhCZ6-cHWNqwHjta5d'))
           ? DEFAULT_WEBHOOK_URL
           : parsed.webhookUrl;
-        const activeSpreadsheet = (!parsed.spreadsheetUrl || parsed.spreadsheetUrl.includes('1ynBrpLAEFuuzn1SL3ZqjScEQHd9SB6d45Rei9bK3uFk'))
+        const activeSpreadsheet = (!parsed.spreadsheetUrl || parsed.spreadsheetUrl.includes('1ynBrpLAEFuuzn1SL3ZqjScEQHd9SB6d45Rei9bK3uFk') || parsed.spreadsheetUrl.includes('1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I'))
           ? DEFAULT_SPREADSHEET_URL
           : parsed.spreadsheetUrl;
 
@@ -673,7 +673,7 @@ function getEmbeddedAppsScriptCode(): string {
  * 
  * HOW TO SET UP THIS GOOGLE APPS SCRIPT:
  * 1. Open your Google Spreadsheet:
- *    https://docs.google.com/spreadsheets/d/1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I/edit
+ *    https://docs.google.com/spreadsheets/d/1oklvgEStaUW1P73_qqyrbCXSCQ_iYj-d0K94bmraxb4/edit
  * 2. In the top menu, click: Extensions -> Apps Script.
  * 3. Delete all code currently in the editor and PASTE this entire script.
  * 4. Click the "Save project" (Floppy disk icon) or press Ctrl+S.
@@ -684,7 +684,7 @@ function getEmbeddedAppsScriptCode(): string {
  * ============================================================================
  */
 
-var DEFAULT_SPREADSHEET_ID = '1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I';
+var DEFAULT_SPREADSHEET_ID = '1oklvgEStaUW1P73_qqyrbCXSCQ_iYj-d0K94bmraxb4';
 
 var MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',

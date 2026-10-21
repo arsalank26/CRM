@@ -14,9 +14,19 @@ try:
 except ImportError:
     pass
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://hlysqtzhyjbbnjkdfwqu.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("VITE_SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhseXNxdHpoeWpiYm5qa2Rmd3F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Mjg4MDksImV4cCI6MjA4NzQwNDgwOX0.Y86oA0F-aK412xHqVd5y6Ew6o3n9m3m1j-5r7k4f8x9"))
-
+SUPABASE_URL = (
+    os.getenv("SUPABASE_URL")
+    or os.getenv("VITE_SUPABASE_URL")
+    or os.getenv("PUBLIC_SUPABASE_URL")
+    or ""
+)
+SUPABASE_KEY = (
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    or os.getenv("SUPABASE_PUBLISHABLE_KEY")
+    or os.getenv("VITE_SUPABASE_ANON_KEY")
+    or os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+    or ""
+)
 class TableQuery:
     def __init__(self, base_url: str, headers: Dict[str, str], table_name: str):
         self.endpoint = f"{base_url.rstrip('/')}/rest/v1/{table_name}"

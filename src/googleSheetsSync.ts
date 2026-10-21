@@ -3,12 +3,12 @@ import { CustomerRecord, Spending, Kirkol, TotalsSummary, MONTH_NAMES, calculate
 export const SHEETS_STORAGE_KEY = 'al_uzer_sheets_config';
 
 export const DEFAULT_WEBHOOK_URL =
-  'https://script.google.com/macros/s/AKfycbzJrQPQQ6p4YsM4XqTSwKdbN1NcupzKLG-FBbzCRidqWKYUzkkhCZ6-cHWNqwHjta5d/exec';
+  'https://script.google.com/macros/s/AKfycbxNUI2eYoQdy5dHCilHkf1r7Gc5UxgzvkpcXi8PSQO4fzgZkivGhbHC5oEdTQDKi7DQ/exec';
 
 export const DEFAULT_SPREADSHEET_URL =
-  'https://docs.google.com/spreadsheets/d/1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I/edit?gid=0#gid=0';
+  'https://docs.google.com/spreadsheets/d/1oklvgEStaUW1P73_qqyrbCXSCQ_iYj-d0K94bmraxb4/edit?pli=1&gid=0#gid=0';
 
-export const DEFAULT_SPREADSHEET_ID = '1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I';
+export const DEFAULT_SPREADSHEET_ID = '1oklvgEStaUW1P73_qqyrbCXSCQ_iYj-d0K94bmraxb4';
 
 export interface GoogleSheetsConfig {
   webhookUrl: string;
@@ -22,10 +22,10 @@ export function getSheetsConfig(): GoogleSheetsConfig {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed.webhookUrl && typeof parsed.webhookUrl === 'string') {
-        const webhookUrl = parsed.webhookUrl.includes('AKfycbwgOZYrRO8GYXw7lvDcau0JnlBlPlWgMEEw5AQ_LUsNgqZVtWY9y_SeIl4eSP181w')
+        const webhookUrl = parsed.webhookUrl.includes('AKfycbwgOZYrRO8GYXw7lvDcau0JnlBlPlWgMEEw5AQ_LUsNgqZVtWY9y_SeIl4eSP181w') || parsed.webhookUrl.includes('AKfycbzJrQPQQ6p4YsM4XqTSwKdbN1NcupzKLG-FBbzCRidqWKYUzkkhCZ6-cHWNqwHjta5d')
           ? DEFAULT_WEBHOOK_URL
           : parsed.webhookUrl;
-        const spreadsheetUrl = (parsed.spreadsheetUrl && !parsed.spreadsheetUrl.includes('1ynBrpLAEFuuzn1SL3ZqjScEQHd9SB6d45Rei9bK3uFk'))
+        const spreadsheetUrl = (parsed.spreadsheetUrl && !parsed.spreadsheetUrl.includes('1ynBrpLAEFuuzn1SL3ZqjScEQHd9SB6d45Rei9bK3uFk') && !parsed.spreadsheetUrl.includes('1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I'))
           ? parsed.spreadsheetUrl
           : DEFAULT_SPREADSHEET_URL;
 
@@ -59,7 +59,7 @@ export async function sendToGoogleAppsScript(payload: Record<string, any>): Prom
     if (!url.startsWith('https://script.google.com/')) return false;
 
     const fullPayload = {
-      spreadsheetId: '1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I',
+      spreadsheetId: DEFAULT_SPREADSHEET_ID,
       ...payload,
     };
 

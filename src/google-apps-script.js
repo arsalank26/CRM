@@ -5,7 +5,7 @@
  * 
  * HOW TO SET UP THIS GOOGLE APPS SCRIPT:
  * 1. Open your Google Spreadsheet:
- *    https://docs.google.com/spreadsheets/d/1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I/edit
+ *    https://docs.google.com/spreadsheets/d/1oklvgEStaUW1P73_qqyrbCXSCQ_iYj-d0K94bmraxb4/edit
  * 2. In the top menu, click: Extensions -> Apps Script.
  * 3. Delete all code currently in the editor and PASTE this entire script.
  * 4. Click the "Save project" (Floppy disk icon) or press Ctrl+S.
@@ -16,7 +16,7 @@
  * ============================================================================
  */
 
-var DEFAULT_SPREADSHEET_ID = '1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I';
+var DEFAULT_SPREADSHEET_ID = '1oklvgEStaUW1P73_qqyrbCXSCQ_iYj-d0K94bmraxb4';
 
 var MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
