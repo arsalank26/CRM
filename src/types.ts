@@ -108,6 +108,51 @@ export const makeId = (): string => crypto.randomUUID?.() ?? `${Date.now()}-${Ma
 export const getStatus = (paid: number, total: number): string =>
   paid >= total && total > 0 ? 'PAID' : paid > 0 ? 'PARTIAL' : 'PENDING';
 
+/**
+ * Standardize work status strings into their canonical category
+ * E.g., 'complete', 'done', 'work done' -> 'Completed'
+ *       'in progress', 'progress' -> 'In Progress'
+ *       'pay required', 'payment pending' -> 'Payment Pending'
+ */
+export function normalizeWorkStatusCategory(status?: string): string {
+  const norm = (status || '').toLowerCase().trim().replace(/[-_]/g, ' ');
+  if (!norm) return 'Pending';
+  if (['completed', 'complete', 'done', 'work done', 'finished', 'compleated'].includes(norm)) return 'Completed';
+  if (['in progress', 'inprogress', 'progress', 'processing', 'working'].includes(norm)) return 'In Progress';
+  if (['pending', 'wait', 'waiting'].includes(norm)) return 'Pending';
+  if (['payment pending', 'pay pending', 'pay required', 'payment required'].includes(norm)) return 'Payment Pending';
+  if (['delivered', 'deliver'].includes(norm)) return 'Delivered';
+  if (['document required', 'docs required', 'doc required', 'documents required'].includes(norm)) return 'Document Required';
+  if (['cancelled', 'canceled', 'cancel'].includes(norm)) return 'Cancelled';
+  if (['rejected', 'reject'].includes(norm)) return 'Rejected';
+  return status?.trim() || 'Pending';
+}
+
+/**
+ * Checks whether a row's work status matches a given filter, case-insensitively and category-aware.
+ */
+export function isMatchingWorkStatus(rowStatus: string | undefined, filterStatus: string): boolean {
+  if (!filterStatus || filterStatus === 'ALL') return true;
+  const rawRow = (rowStatus || 'Pending').toLowerCase().trim();
+  const rawFilter = filterStatus.toLowerCase().trim();
+  if (rawRow === rawFilter) return true;
+  const catRow = normalizeWorkStatusCategory(rowStatus).toLowerCase();
+  const catFilter = normalizeWorkStatusCategory(filterStatus).toLowerCase();
+  return catRow === catFilter || catRow === rawFilter || rawRow === catFilter;
+}
+
+/**
+ * Extracts a Google Spreadsheet ID from either a full URL or a raw ID string
+ */
+export function extractSpreadsheetId(urlOrId?: string): string {
+  if (!urlOrId) return '';
+  const trimmed = urlOrId.trim();
+  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (match && match[1]) return match[1];
+  if (/^[a-zA-Z0-9-_]{15,}$/.test(trimmed)) return trimmed;
+  return '';
+}
+
 export const todayISO = (): string => new Date().toISOString().slice(0, 10);
 
 /**

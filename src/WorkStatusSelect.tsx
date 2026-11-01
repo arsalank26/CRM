@@ -26,6 +26,8 @@ export function getStatusStyle(status: string) {
   const norm = (status || '').toLowerCase().trim();
   switch (norm) {
     case 'completed':
+    case 'complete':
+    case 'compleated':
     case 'done':
     case 'work done':
       return {
@@ -35,6 +37,7 @@ export function getStatusStyle(status: string) {
         dotColor: '#10b981',
       };
     case 'delivered':
+    case 'deliver':
       return {
         color: '#6d28d9',
         background: '#f5f3ff',
@@ -42,7 +45,9 @@ export function getStatusStyle(status: string) {
         dotColor: '#8b5cf6',
       };
     case 'in progress':
+    case 'inprogress':
     case 'progress':
+    case 'processing':
       return {
         color: '#0369a1',
         background: '#f0f9ff',
@@ -50,6 +55,9 @@ export function getStatusStyle(status: string) {
         dotColor: '#0ea5e9',
       };
     case 'payment pending':
+    case 'pay required':
+    case 'payment required':
+    case 'pay pending':
       return {
         color: '#c2410c',
         background: '#fff7ed',
@@ -58,6 +66,8 @@ export function getStatusStyle(status: string) {
       };
     case 'document required':
     case 'docs required':
+    case 'doc required':
+    case 'documents required':
       return {
         color: '#a16207',
         background: '#fefce8',
@@ -65,6 +75,7 @@ export function getStatusStyle(status: string) {
         dotColor: '#eab308',
       };
     case 'rejected':
+    case 'reject':
       return {
         color: '#b91c1c',
         background: '#fef2f2',
@@ -72,6 +83,8 @@ export function getStatusStyle(status: string) {
         dotColor: '#ef4444',
       };
     case 'cancelled':
+    case 'canceled':
+    case 'cancel':
       return {
         color: '#475569',
         background: '#f8fafc',

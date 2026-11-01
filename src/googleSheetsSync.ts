@@ -1,4 +1,4 @@
-import { CustomerRecord, Spending, Kirkol, TotalsSummary, MONTH_NAMES, calculateMonthTotals } from './types';
+import { CustomerRecord, Spending, Kirkol, TotalsSummary, MONTH_NAMES, calculateMonthTotals, extractSpreadsheetId } from './types';
 
 export const SHEETS_STORAGE_KEY = 'al_uzer_sheets_config';
 
@@ -22,16 +22,9 @@ export function getSheetsConfig(): GoogleSheetsConfig {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed.webhookUrl && typeof parsed.webhookUrl === 'string') {
-        const webhookUrl = parsed.webhookUrl.includes('AKfycbwgOZYrRO8GYXw7lvDcau0JnlBlPlWgMEEw5AQ_LUsNgqZVtWY9y_SeIl4eSP181w') || parsed.webhookUrl.includes('AKfycbzJrQPQQ6p4YsM4XqTSwKdbN1NcupzKLG-FBbzCRidqWKYUzkkhCZ6-cHWNqwHjta5d')
-          ? DEFAULT_WEBHOOK_URL
-          : parsed.webhookUrl;
-        const spreadsheetUrl = (parsed.spreadsheetUrl && !parsed.spreadsheetUrl.includes('1ynBrpLAEFuuzn1SL3ZqjScEQHd9SB6d45Rei9bK3uFk') && !parsed.spreadsheetUrl.includes('1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I'))
-          ? parsed.spreadsheetUrl
-          : DEFAULT_SPREADSHEET_URL;
-
         return {
-          webhookUrl,
-          spreadsheetUrl,
+          webhookUrl: parsed.webhookUrl,
+          spreadsheetUrl: parsed.spreadsheetUrl || DEFAULT_SPREADSHEET_URL,
           lastSync: parsed.lastSync,
         };
       }
@@ -58,8 +51,15 @@ export async function sendToGoogleAppsScript(payload: Record<string, any>): Prom
     const url = config.webhookUrl.trim();
     if (!url.startsWith('https://script.google.com/')) return false;
 
+    const targetSpreadsheetId =
+      extractSpreadsheetId(payload.spreadsheetId) ||
+      extractSpreadsheetId(payload.spreadsheetUrl) ||
+      extractSpreadsheetId(config.spreadsheetUrl) ||
+      DEFAULT_SPREADSHEET_ID;
+
     const fullPayload = {
-      spreadsheetId: DEFAULT_SPREADSHEET_ID,
+      spreadsheetId: targetSpreadsheetId,
+      spreadsheetUrl: config.spreadsheetUrl || payload.spreadsheetUrl || DEFAULT_SPREADSHEET_URL,
       ...payload,
     };
 

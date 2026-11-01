@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import {
   CustomerRecord, Spending, Kirkol, Category, WorkType, WorkStatus,
-  formatCurrency, formatDate, getStatus, todayISO, MONTH_NAMES
+  formatCurrency, formatDate, getStatus, todayISO, MONTH_NAMES,
+  normalizeWorkStatusCategory, isMatchingWorkStatus
 } from './types';
 import { CustomerModal } from './CustomerModal';
 import { OwnerAuthModal } from './OwnerAuthModal';
@@ -16,7 +17,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { WorkStatusSelect } from './WorkStatusSelect';
 import { printThermalBill } from './billPrinter';
 
-type StatusFilter = 'ALL' | 'Pending' | 'Payment Pending' | 'In Progress' | 'Al Uzer' | 'Delivered' | 'Document Required' | 'Completed';
+type StatusFilter = string;
 
 function checkIsAlUzer(row: CustomerRecord): boolean {
   const norm = (str?: string) => (str || '').toLowerCase().replace(/[\s\-_.]/g, '');
@@ -203,7 +204,7 @@ export function CRMDashboard({
       if (statusFilter !== 'ALL') {
         if (statusFilter === 'Al Uzer') {
           if (!checkIsAlUzer(row)) return false;
-        } else if (row.work_status !== statusFilter) {
+        } else if (!isMatchingWorkStatus(row.work_status, statusFilter)) {
           return false;
         }
       }
@@ -233,9 +234,11 @@ export function CRMDashboard({
       Completed: 0,
     };
     monthFilteredCustomers.forEach((row) => {
-      const st = row.work_status || 'Pending';
-      if (counts[st] !== undefined && st !== 'Al Uzer') {
-        counts[st]++;
+      const cat = normalizeWorkStatusCategory(row.work_status);
+      if (counts[cat] !== undefined) {
+        counts[cat]++;
+      } else {
+        counts[cat] = (counts[cat] || 0) + 1;
       }
     });
     return counts;
@@ -248,7 +251,7 @@ export function CRMDashboard({
 
     const statusCountsMap: Record<string, number> = {};
     monthFilteredCustomers.forEach((c) => {
-      const st = c.work_status || 'Pending';
+      const st = normalizeWorkStatusCategory(c.work_status);
       statusCountsMap[st] = (statusCountsMap[st] || 0) + 1;
     });
 
@@ -322,16 +325,40 @@ export function CRMDashboard({
     };
   }, [monthFilteredSpendings, monthFinancials.totalSpending]);
 
-  const statusButtons: { key: StatusFilter; label: string }[] = [
-    { key: 'ALL', label: 'ALL' },
-    { key: 'Pending', label: 'PENDING' },
-    { key: 'Payment Pending', label: 'PAYMENT PENDING' },
-    { key: 'In Progress', label: 'IN PROGRESS' },
-    { key: 'Al Uzer', label: 'AL UZER' },
-    { key: 'Delivered', label: 'DELIVERED' },
-    { key: 'Document Required', label: 'DOCUMENT REQUIRED' },
-    { key: 'Completed', label: 'COMPLETED' },
-  ];
+  const statusButtons = useMemo(() => {
+    const standard: { key: string; label: string }[] = [
+      { key: 'ALL', label: 'ALL' },
+      { key: 'Pending', label: 'PENDING' },
+      { key: 'Payment Pending', label: 'PAYMENT PENDING' },
+      { key: 'In Progress', label: 'IN PROGRESS' },
+      { key: 'Al Uzer', label: 'AL UZER' },
+      { key: 'Delivered', label: 'DELIVERED' },
+      { key: 'Document Required', label: 'DOCUMENT REQUIRED' },
+      { key: 'Completed', label: 'COMPLETED' },
+    ];
+    const stdSet = new Set(standard.map((b) => b.key.toLowerCase()));
+    const customList: { key: string; label: string }[] = [];
+
+    monthFilteredCustomers.forEach((c) => {
+      const raw = (c.work_status || '').trim();
+      const cat = normalizeWorkStatusCategory(raw);
+      if (raw && !stdSet.has(cat.toLowerCase()) && !stdSet.has(raw.toLowerCase())) {
+        stdSet.add(raw.toLowerCase());
+        customList.push({ key: raw, label: raw.toUpperCase() });
+      }
+    });
+
+    workStatuses.forEach((ws) => {
+      const raw = (ws.name || '').trim();
+      const cat = normalizeWorkStatusCategory(raw);
+      if (raw && !stdSet.has(cat.toLowerCase()) && !stdSet.has(raw.toLowerCase())) {
+        stdSet.add(raw.toLowerCase());
+        customList.push({ key: raw, label: raw.toUpperCase() });
+      }
+    });
+
+    return [...standard, ...customList];
+  }, [monthFilteredCustomers, workStatuses]);
 
   const openCreate = (): void => {
     if (onAddCustomer) {
@@ -627,7 +654,7 @@ export function CRMDashboard({
             Completed & Delivered
           </span>
           <strong className="crm-summary-value" style={{ fontSize: '20px', display: 'block', marginTop: '4px', color: '#15803d' }}>
-            {monthFilteredCustomers.filter((c) => ['Completed', 'Delivered'].includes(c.work_status)).length}
+            {monthFilteredCustomers.filter((c) => ['Completed', 'Delivered'].includes(normalizeWorkStatusCategory(c.work_status))).length}
           </strong>
           <span style={{ fontSize: '11px', color: '#15803d' }}>Fulfilled jobs</span>
         </div>
@@ -640,7 +667,7 @@ export function CRMDashboard({
             Active / In Progress
           </span>
           <strong className="crm-summary-value" style={{ fontSize: '20px', display: 'block', marginTop: '4px', color: '#ea580c' }}>
-            {monthFilteredCustomers.filter((c) => ['Pending', 'In Progress', 'Payment Pending', 'Document Required'].includes(c.work_status)).length}
+            {monthFilteredCustomers.filter((c) => ['Pending', 'In Progress', 'Payment Pending', 'Document Required'].includes(normalizeWorkStatusCategory(c.work_status))).length}
           </strong>
           <span style={{ fontSize: '11px', color: '#ea580c' }}>In processing</span>
         </div>

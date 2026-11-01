@@ -3,7 +3,7 @@ import {
   FileSpreadsheet, Sparkles, RefreshCw, Check, Copy, ExternalLink, Calendar,
   Download, PlusCircle, CheckCircle2, AlertCircle, HelpCircle, Layers, ArrowUpRight
 } from 'lucide-react';
-import { CustomerRecord, Spending, Kirkol, TotalsSummary, MONTH_NAMES, calculateMonthTotals, formatCurrency } from './types';
+import { CustomerRecord, Spending, Kirkol, TotalsSummary, MONTH_NAMES, calculateMonthTotals, formatCurrency, extractSpreadsheetId } from './types';
 
 type Props = {
   customers: CustomerRecord[];
@@ -43,21 +43,12 @@ export function GoogleSheetsPage({ customers, spendings, kirkol, totals, notify 
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        const activeWebhook = (!parsed.webhookUrl || parsed.webhookUrl.includes('AKfycbwgOZYrRO8GYXw7lvDcau0JnlBlPlWgMEEw5AQ_LUsNgqZVtWY9y_SeIl4eSP181w') || parsed.webhookUrl.includes('AKfycbzJrQPQQ6p4YsM4XqTSwKdbN1NcupzKLG-FBbzCRidqWKYUzkkhCZ6-cHWNqwHjta5d'))
-          ? DEFAULT_WEBHOOK_URL
-          : parsed.webhookUrl;
-        const activeSpreadsheet = (!parsed.spreadsheetUrl || parsed.spreadsheetUrl.includes('1ynBrpLAEFuuzn1SL3ZqjScEQHd9SB6d45Rei9bK3uFk') || parsed.spreadsheetUrl.includes('1pHMlFy-Qn1u4ssrYnyUR_uwvFbt2xveaPOZW5JY7V_I'))
-          ? DEFAULT_SPREADSHEET_URL
-          : parsed.spreadsheetUrl;
+        const activeWebhook = parsed.webhookUrl || DEFAULT_WEBHOOK_URL;
+        const activeSpreadsheet = parsed.spreadsheetUrl || DEFAULT_SPREADSHEET_URL;
 
         setWebhookUrl(activeWebhook);
         setSpreadsheetUrl(activeSpreadsheet);
         if (parsed.lastSync) setLastSync(parsed.lastSync);
-
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ webhookUrl: activeWebhook, spreadsheetUrl: activeSpreadsheet, lastSync: parsed.lastSync })
-        );
       } else {
         localStorage.setItem(
           STORAGE_KEY,
@@ -68,6 +59,10 @@ export function GoogleSheetsPage({ customers, spendings, kirkol, totals, notify 
       // ignore
     }
   }, []);
+
+  const getActiveSpreadsheetId = (): string => {
+    return extractSpreadsheetId(spreadsheetUrl) || '1oklvgEStaUW1P73_qqyrbCXSCQ_iYj-d0K94bmraxb4';
+  };
 
   const saveSettings = () => {
     try {
@@ -86,7 +81,9 @@ export function GoogleSheetsPage({ customers, spendings, kirkol, totals, notify 
     if (!webhookUrl) return;
     try {
       setSyncing(true);
-      const res = await fetch(webhookUrl + (webhookUrl.includes('?') ? '&' : '?') + 'action=status', {
+      const sId = getActiveSpreadsheetId();
+      const testUrl = webhookUrl + (webhookUrl.includes('?') ? '&' : '?') + 'action=status' + (sId ? `&spreadsheetId=${encodeURIComponent(sId)}` : '');
+      const res = await fetch(testUrl, {
         method: 'GET',
         mode: 'cors',
       });
@@ -135,6 +132,8 @@ export function GoogleSheetsPage({ customers, spendings, kirkol, totals, notify 
 
       const payload = {
         action: 'sync_all',
+        spreadsheetId: getActiveSpreadsheetId(),
+        spreadsheetUrl,
         isMonthly,
         monthName: MONTH_NAMES[activeMonth],
         year: activeYear,
@@ -154,7 +153,7 @@ export function GoogleSheetsPage({ customers, spendings, kirkol, totals, notify 
       await fetch(webhookUrl, {
         method: 'POST',
         mode: 'no-cors', // Google Apps Script redirects require no-cors for direct browser posting
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload),
       });
 
@@ -187,9 +186,11 @@ export function GoogleSheetsPage({ customers, spendings, kirkol, totals, notify 
       await fetch(webhookUrl, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           action: 'create_month_sheet',
+          spreadsheetId: getActiveSpreadsheetId(),
+          spreadsheetUrl,
           monthName: MONTH_NAMES[targetMonth],
           year: targetYear,
           isMonthly: true,
@@ -238,9 +239,11 @@ export function GoogleSheetsPage({ customers, spendings, kirkol, totals, notify 
       await fetch(webhookUrl, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           action: 'create_year_workspace',
+          spreadsheetId: getActiveSpreadsheetId(),
+          spreadsheetUrl,
           year: newYearTarget,
         }),
       });
@@ -692,17 +695,36 @@ var MONTHS = [
 ];
 
 function getSpreadsheet(data) {
-  var id = (data && (data.spreadsheetId || data.id)) || DEFAULT_SPREADSHEET_ID;
+  // 1. Try active spreadsheet if container-bound
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (ss && ss.getId()) return ss;
+    var activeSs = SpreadsheetApp.getActiveSpreadsheet();
+    if (activeSs && activeSs.getId()) return activeSs;
   } catch (e) { }
 
+  // 2. Try spreadsheet ID from request data or spreadsheetUrl
+  var id = data && (data.spreadsheetId || data.id);
+  if (!id && data && data.spreadsheetUrl) {
+    var m = String(data.spreadsheetUrl).match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (m && m[1]) id = m[1];
+  }
+
+  if (id) {
+    try {
+      var ssById = SpreadsheetApp.openById(id);
+      if (ssById) return ssById;
+    } catch (e) { }
+  }
+
+  // 3. Fallback to default ID
+  if (!id) {
+    id = DEFAULT_SPREADSHEET_ID;
+  }
   if (id) {
     try {
       return SpreadsheetApp.openById(id);
     } catch (e) { }
   }
+
   return null;
 }
 
@@ -820,14 +842,33 @@ function handleCreateYearWorkspace(data) {
   var year = Number(data.year) || (new Date().getFullYear() + 1);
   var workspaceName = 'Al Uzer CRM - ' + year + ' Workspace';
 
-  var newSS = SpreadsheetApp.create(workspaceName);
+  var newSS = null;
+  try {
+    newSS = SpreadsheetApp.create(workspaceName);
+  } catch (e) {
+    newSS = getSpreadsheet(data);
+  }
 
-  var overviewSheet = newSS.getActiveSheet();
-  overviewSheet.setName('Annual Overview');
-  formatAnnualOverviewSheet(overviewSheet, year, MONTHS);
+  if (!newSS) {
+    return createJsonResponse({
+      success: false,
+      error: 'Could not access or create target spreadsheet.'
+    });
+  }
 
+  // Create Annual Overview tab if needed
+  try {
+    var overviewSheet = newSS.getSheetByName('Annual Overview') || newSS.getActiveSheet();
+    overviewSheet.setName('Annual Overview');
+    formatAnnualOverviewSheet(overviewSheet, year, MONTHS);
+  } catch (e) { }
+
+  // Create 12 monthly sheets with all 3 tables on each single page
   for (var i = 0; i < MONTHS.length; i++) {
-    var monthSheet = newSS.insertSheet(MONTHS[i] + ' ' + year);
+    var monthSheet = newSS.getSheetByName(MONTHS[i] + ' ' + year);
+    if (!monthSheet) {
+      monthSheet = newSS.insertSheet(MONTHS[i] + ' ' + year);
+    }
     renderFullMonthSheet(monthSheet, MONTHS[i] + ' ' + year, [], [], [], {});
   }
 
@@ -1120,7 +1161,8 @@ function renderFullMonthSheet(sheet, sheetTitle, customers, spendings, kirkol, t
 }
 
 function findRowWithText(sheet, text) {
-  var maxRows = Math.min(sheet.getLastRow() + 5, 200);
+  var lastRow = sheet.getLastRow();
+  var maxRows = Math.max(lastRow + 5, 30);
   if (maxRows <= 0) return -1;
   var values = sheet.getRange(1, 1, maxRows, 1).getValues();
   for (var i = 0; i < values.length; i++) {

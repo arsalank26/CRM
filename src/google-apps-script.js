@@ -24,17 +24,36 @@ var MONTHS = [
 ];
 
 function getSpreadsheet(data) {
-  var id = (data && (data.spreadsheetId || data.id)) || DEFAULT_SPREADSHEET_ID;
+  // 1. Try active spreadsheet if container-bound
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (ss && ss.getId()) return ss;
+    var activeSs = SpreadsheetApp.getActiveSpreadsheet();
+    if (activeSs && activeSs.getId()) return activeSs;
   } catch (e) { }
 
+  // 2. Try spreadsheet ID from request data or spreadsheetUrl
+  var id = data && (data.spreadsheetId || data.id);
+  if (!id && data && data.spreadsheetUrl) {
+    var m = String(data.spreadsheetUrl).match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (m && m[1]) id = m[1];
+  }
+
+  if (id) {
+    try {
+      var ssById = SpreadsheetApp.openById(id);
+      if (ssById) return ssById;
+    } catch (e) { }
+  }
+
+  // 3. Fallback to default ID
+  if (!id) {
+    id = DEFAULT_SPREADSHEET_ID;
+  }
   if (id) {
     try {
       return SpreadsheetApp.openById(id);
     } catch (e) { }
   }
+
   return null;
 }
 
@@ -160,16 +179,33 @@ function handleCreateYearWorkspace(data) {
   var year = Number(data.year) || (new Date().getFullYear() + 1);
   var workspaceName = 'Al Uzer CRM - ' + year + ' Workspace';
 
-  var newSS = SpreadsheetApp.create(workspaceName);
+  var newSS = null;
+  try {
+    newSS = SpreadsheetApp.create(workspaceName);
+  } catch (e) {
+    newSS = getSpreadsheet(data);
+  }
 
-  // Create Annual Overview tab
-  var overviewSheet = newSS.getActiveSheet();
-  overviewSheet.setName('Annual Overview');
-  formatAnnualOverviewSheet(overviewSheet, year, MONTHS);
+  if (!newSS) {
+    return createJsonResponse({
+      success: false,
+      error: 'Could not access or create target spreadsheet.'
+    });
+  }
+
+  // Create Annual Overview tab if needed
+  try {
+    var overviewSheet = newSS.getSheetByName('Annual Overview') || newSS.getActiveSheet();
+    overviewSheet.setName('Annual Overview');
+    formatAnnualOverviewSheet(overviewSheet, year, MONTHS);
+  } catch (e) { }
 
   // Create 12 monthly sheets with all 3 tables on each single page
   for (var i = 0; i < MONTHS.length; i++) {
-    var monthSheet = newSS.insertSheet(MONTHS[i] + ' ' + year);
+    var monthSheet = newSS.getSheetByName(MONTHS[i] + ' ' + year);
+    if (!monthSheet) {
+      monthSheet = newSS.insertSheet(MONTHS[i] + ' ' + year);
+    }
     renderFullMonthSheet(monthSheet, MONTHS[i] + ' ' + year, [], [], [], {});
   }
 
@@ -483,7 +519,8 @@ function renderFullMonthSheet(sheet, sheetTitle, customers, spendings, kirkol, t
 }
 
 function findRowWithText(sheet, text) {
-  var maxRows = Math.min(sheet.getLastRow() + 5, 200);
+  var lastRow = sheet.getLastRow();
+  var maxRows = Math.max(lastRow + 5, 30);
   if (maxRows <= 0) return -1;
   var values = sheet.getRange(1, 1, maxRows, 1).getValues();
   for (var i = 0; i < values.length; i++) {
